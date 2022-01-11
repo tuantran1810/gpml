@@ -1,8 +1,9 @@
+import sys
+import os
+sys.path.append('../../util')
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
-import sys
-
-from util.graphdb_base import GraphDBBase
+from graphdb_base import GraphDBBase
 
 
 class ContentBasedRecommenderSecondApproach(GraphDBBase):
@@ -13,7 +14,7 @@ class ContentBasedRecommenderSecondApproach(GraphDBBase):
     def recommend_to(self, userId, k):
         user_VSM = self.get_user_vector(userId)
         movies_VSM, titles = self.get_movie_vectors(userId)
-        top_k = self.compute_top_k (user_VSM, movies_VSM, k)
+        top_k = self.compute_top_k(user_VSM, movies_VSM, k)
         results = []
         for movie in top_k:
             item = {}
@@ -59,20 +60,21 @@ class ContentBasedRecommenderSecondApproach(GraphDBBase):
 
     def get_movie_vectors(self, user_id):
         list_of_moview_query = """
-                MATCH (movie:Movie)-[r:DIRECTED|HAS]-(feature)<-[i:INTERESTED_IN]-(user:User {userId: $userId})
+                MATCH (movie:Movie)-[r:ACTS_IN|WRITED|DIRECTED|PRODUCED|HAS]-(feature)<-[i:INTERESTED_IN]-(user:User {userId: $userId})
                 WHERE NOT EXISTS((user)-[]->(movie)) AND EXISTS((user)-[]->(feature))
                 WITH movie, count(i) as featuresCount
-                WHERE featuresCount > 5
+                WHERE featuresCount > 7
                 RETURN movie.movieId as movieId, movie.title as title
             """
 
         query = """
-                MATCH (feature:Feature)
+                MATCH (feature)
+                WHERE feature:Genre OR feature:Person
                 WITH feature
                 ORDER BY id(feature)
                 MATCH (movie:Movie)
                 WHERE movie.movieId = $movieId
-                OPTIONAL MATCH (movie)-[r:DIRECTED|HAS]-(feature)
+                OPTIONAL MATCH (movie)-[r:ACTS_IN|WRITED|DIRECTED|PRODUCED|HAS]->(feature)
                 WITH CASE WHEN r IS null THEN 0 ELSE 1 END as value
                 RETURN collect(value) as vector;
             """
@@ -87,7 +89,9 @@ class ContentBasedRecommenderSecondApproach(GraphDBBase):
                 movie_id = movie["movieId"]
                 title = movie["title"]
                 vector = tx.run(query, {"movieId": movie_id})
-                movies_VSM[movie_id] = vector.single()[0]
+                result = vector.single().value()
+                movies_VSM[movie_id] = result
+                print(len(result))
                 titles[movie_id] = title
                 i += 1
                 if i % 100 == 0:
