@@ -1,8 +1,11 @@
-import numpy as np
 import sys
+import os
+sys.path.append('../../util')
+import pickle
+import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 
-from util.graphdb_base import GraphDBBase
+from graphdb_base import GraphDBBase
 
 
 class ContentBasedRecommender(GraphDBBase):
@@ -11,10 +14,10 @@ class ContentBasedRecommender(GraphDBBase):
         super().__init__(command=__file__, argv=argv)
 
     def compute_and_store_similarity(self):
-        movies_VSM = self.get_movie_vectors()
+        movies_vsm = self.get_movie_vectors()
         i = 0
-        for movie in movies_VSM:
-            knn = self.compute_knn(movie, movies_VSM.copy(), 10)
+        for movie in movies_vsm:
+            knn = self.compute_knn(movie, movies_vsm.copy(), 10)
             self.store_knn(movie, knn)
             # would be useful to add a progress bar here as well...
             i += 1
@@ -40,30 +43,35 @@ class ContentBasedRecommender(GraphDBBase):
             """
 
         query = """
-                MATCH (feature:Feature)
+                MATCH (feature)
+                WHERE feature:Genre OR feature:DIRECTOR
                 WITH feature
                 ORDER BY id(feature)
                 MATCH (movie:Movie)
                 WHERE movie.movieId = $movieId
-                OPTIONAL MATCH (movie)-[r:DIRECTED|HAS]-(feature)
+                OPTIONAL MATCH (movie)-[r:DIRECTED|HAS]->(feature)
                 WITH CASE WHEN r IS null THEN 0 ELSE 1 END as value
                 RETURN collect(value) as vector;
             """
-        movies_VSM = {}
+        movies_vsm = {}
+
         with self._driver.session() as session:
             tx = session.begin_transaction()
 
             i = 0
             for movie in tx.run(list_of_moview_query):
                 movie_id = movie["movieId"]
+                if movie_id in movies_vsm:
+                    continue
                 vector = tx.run(query, {"movieId": movie_id})
-                movies_VSM[movie_id] = vector.single()[0]
+                result = np.array(vector.single().value())
+                movies_vsm[movie_id] = result
                 i += 1
-                if i % 100 == 0:
+                if i % 50 == 0:
                     print(i, "lines processed")
-            print(i, "lines processed")
-        print(len(movies_VSM))
-        return movies_VSM
+
+        print(len(movies_vsm))
+        return movies_vsm
 
     def store_knn(self, movie, knn):
         with self._driver.session() as session:

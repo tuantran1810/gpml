@@ -4,7 +4,7 @@ sys.path.append('../../util')
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 from graphdb_base import GraphDBBase
-
+from scipy.stats import pearsonr
 
 class ContentBasedRecommenderSecondApproach(GraphDBBase):
     def __init__(self, argv, extended_options, extended_long_options):
@@ -29,7 +29,8 @@ class ContentBasedRecommenderSecondApproach(GraphDBBase):
         dtype = [ ('movieId', 'U10'),('value', 'f4')]
         knn_values = np.array([], dtype=dtype)
         for other_movie in movies:
-            value = cosine_similarity([user], [movies[other_movie]])
+            # value = cosine_similarity([user], [movies[other_movie]])
+            value, _ = pearsonr(user, movies[other_movie])
             if value > 0:
                 knn_values = np.concatenate((knn_values, np.array([(other_movie, value)], dtype=dtype)))
         knn_values = np.sort(knn_values, kind='mergesort', order='value' )[::-1]
@@ -63,7 +64,7 @@ class ContentBasedRecommenderSecondApproach(GraphDBBase):
                 MATCH (movie:Movie)-[r:ACTS_IN|WRITED|DIRECTED|PRODUCED|HAS]-(feature)<-[i:INTERESTED_IN]-(user:User {userId: $userId})
                 WHERE NOT EXISTS((user)-[]->(movie)) AND EXISTS((user)-[]->(feature))
                 WITH movie, count(i) as featuresCount
-                WHERE featuresCount > 7
+                WHERE featuresCount > 5
                 RETURN movie.movieId as movieId, movie.title as title
             """
 
