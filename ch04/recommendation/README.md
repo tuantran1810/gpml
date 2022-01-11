@@ -25,7 +25,7 @@ The following queries (as explained in the book) re-adjust the model created dur
 ```
 CALL apoc.periodic.iterate(
 "MATCH (u:User) WHERE NOT EXISTS((u)-[:INTERESTED_IN]->()) return u",
-"MATCH (u)-[:RATES]->(m:Movie)-[:ACTS_IN|WRITES|DIRECTED|PRODUCES|HAS_GENRE]-(feature) 
+"MATCH (u)-[:RATES]->(m:Movie)-[:ACTS_IN|WRITES|DIRECTED|PRODUCES|HAS]-(feature) 
 WITH u, feature, count(feature) as occurrence 
 WHERE occurrence > 2 
 MERGE (u)-[r:INTERESTED_IN]->(feature) 
@@ -34,7 +34,7 @@ ON CREATE SET r.weight = occurrence",
 ```
 
 ```
-MATCH (:Movie)-[:ACTS_IN|WRITES|DIRECTED|PRODUCES|HAS_GENRE]-(feature)
+MATCH (:Movie)-[:ACTS_IN|WRITES|DIRECTED|PRODUCES|HAS]-(feature)
 set feature:Feature
 ```
 
@@ -57,7 +57,7 @@ CALL apoc.periodic.iterate(
 WITH distinct m,  feature 
 ORDER BY id(feature) 
 OPTIONAL 
-MATCH (m)-[r:ACTS_IN|WRITES|DIRECTED|PRODUCES|HAS_GENRE]-(feature) 
+MATCH (m)-[r:ACTS_IN|WRITES|DIRECTED|PRODUCES|HAS]-(feature) 
 WITH m, id(feature) as featureId, case r is null when true then 0 else 1 end as value order by m, featureId 
 set m.vector = collect(value)", 
 {batchSize:100, parallel:true})
@@ -72,7 +72,7 @@ WHERE id(movie) = id(m)
 MATCH (feature:Feature) 
 WITH distinct movie, feature 
 ORDER BY id(feature) 
-OPTIONAL MATCH (m)-[r:ACTS_IN|WRITES|DIRECTED|PRODUCES|HAS_GENRE]-(feature) 
+OPTIONAL MATCH (m)-[r:ACTS_IN|WRITES|DIRECTED|PRODUCES|HAS]-(feature) 
 WITH m, id(feature) as featureId, case r is null when true then 0 else 1 end as value order by m, featureId 
 WITH m, collect(value) as vector 
 SET m.vector = vector", 

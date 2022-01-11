@@ -1,11 +1,12 @@
+import sys
+import os
+sys.path.append('../../../util')
 import csv
 import time
 from imdb import IMDb
-import sys
-import os
-
-from util.graphdb_base import GraphDBBase
-from util.string_util import strip
+import pickle
+from graphdb_base import GraphDBBase
+from string_util import strip
 
 
 class MoviesImporter(GraphDBBase):
@@ -55,8 +56,12 @@ class MoviesImporter(GraphDBBase):
                 tx.commit()
                 print(j, "lines processed")
 
-    def import_movie_details(self, file):
+    def import_movie_details(self, file, data_file):
         print("Importing details of movies")
+        data = None
+        with open (data_file, 'rb') as fd:
+            data = pickle.load(fd)
+
         with open(file, 'r+') as in_file:
             reader = csv.reader(in_file, delimiter=',')
             next(reader, None)
@@ -70,7 +75,11 @@ class MoviesImporter(GraphDBBase):
                         if row:
                             movie_id = strip(row[0])
                             imdb_id = strip(row[1])
-                            movie = self._ia.get_movie(imdb_id)
+                            movie = None
+                            if imdb_id in data and data[imdb_id] is not None:
+                                movie = data[imdb_id]
+                            else:
+                                movie = self._ia.get_movie(imdb_id)
                             self.process_movie_info(movie_info=movie, tx=tx, movie_id=movie_id)
                             i += 1
                             j += 1
@@ -164,7 +173,7 @@ if __name__ == '__main__':
 
     if not base_path:
         print("source path directory is mandatory. Setting it to default.")
-        base_path = "../../../dataset/movielens/ml-latest-small"
+        base_path = "../../data/ml-latest-small"
 
     if not os.path.isdir(base_path):
         print(base_path, "isn't a directory")
@@ -172,6 +181,7 @@ if __name__ == '__main__':
 
     movies_path = os.path.join(base_path, "movies.csv")
     links_path = os.path.join(base_path, "links.csv")
+    details_data_path = os.path.join(base_path, "details.pkl")
     ratings_path = os.path.join(base_path, "ratings.csv")
 
     if not os.path.isfile(movies_path):
@@ -183,10 +193,13 @@ if __name__ == '__main__':
     if not os.path.isfile(ratings_path):
         print(ratings_path, "doesn't exist in ", base_path)
         sys.exit(1)
+    if not os.path.isfile(details_data_path):
+        print(details_data_path, "doesn't exist in ", base_path)
+        sys.exit(1)
 
     start = time.time()
     importing.import_movies(file=movies_path)
-    importing.import_movie_details(file=links_path)
+    importing.import_movie_details(file=links_path, data_file=details_data_path)
     importing.import_user_item(file=ratings_path)
     end = time.time() - start
     importing.close()

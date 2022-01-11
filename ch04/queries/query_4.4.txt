@@ -10,7 +10,7 @@ FOREACH (actor IN ['John Travolta', 'Samuel L. Jackson', 'Bruce Willis', 'Uma Th
 FOREACH (writer IN ['Quentin Tarantino', 'Roger Avary']
 | MERGE (p:Person {name: writer}) SET p:Writer MERGE (p)-[:WRITES]->(pulp))
 FOREACH (genre IN ['Action', 'Crime', 'Triller']
-| MERGE (g:Genre {genre: genre}) MERGE (pulp)-[:HAS_GENRE]->(g))
+| MERGE (g:Genre {genre: genre}) MERGE (pulp)-[:HAS]->(g))
 
 CREATE (punisher:Movie {title: 'The Punisher'})
 FOREACH (director IN ['Jonathan Hensleigh']
@@ -20,7 +20,7 @@ FOREACH (actor IN ['Thomas Jane', 'John Travolta', 'Samantha Mathis']
 FOREACH (writer IN ['Jonathan Hensleigh', 'Michael France']
 | MERGE (p:Person {name: writer}) SET p:Writer MERGE (p)-[:WRITES]->(punisher))
 FOREACH (genre IN ['Action', 'Adventure', 'Crime', 'Drama', 'Thriller']
-| MERGE (g:Genre {genre: genre}) MERGE (punisher)-[:HAS_GENRE]->(g))
+| MERGE (g:Genre {genre: genre}) MERGE (punisher)-[:HAS]->(g))
 
 CREATE (bill:Movie {title: 'Kill Bill: Volume 1'})
 FOREACH (director IN ['Quentin Tarantino']
@@ -30,4 +30,4 @@ FOREACH (actor IN ['Uma Thurman', 'Lucy Liu', 'Vivica A. Fox']
 FOREACH (writer IN ['Quentin Tarantino', 'Uma Thurman']
 | MERGE (p:Person {name: writer}) SET p:Writer MERGE (p)-[:WRITES]->(bill))
 FOREACH (genre IN ['Action', 'Crime', 'Triller']
-| MERGE (g:Genre {genre: genre}) MERGE (bill)-[:HAS_GENRE]->(g))
+| MERGE (g:Genre {genre: genre}) MERGE (bill)-[:HAS]->(g))

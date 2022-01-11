@@ -10,3 +10,5 @@ ch06/imports/yoochoose/yoochoose-*.dat
 /docker-compose/data/
 /docker-compose/logs/
 /docker-compose/plugins/
+/ch04/data
+.DS_Store

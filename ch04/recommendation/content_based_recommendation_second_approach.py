@@ -36,10 +36,11 @@ class ContentBasedRecommenderSecondApproach(GraphDBBase):
 
     def get_user_vector(self, user_id):
         query = """
-                MATCH p=(user:User)-[:WATCHED|RATED]->(movie)
+                MATCH p=(user:User)-[:RATED]->(movie)
                 WHERE user.userId = $userId
-                with count(p) as total
-                MATCH (feature:Feature)
+                WITH count(p) as total
+                MATCH (feature)
+                WHERE feature:Person OR feature:Genre
                 WITH feature, total
                 ORDER BY id(feature)
                 MATCH (user:User)
