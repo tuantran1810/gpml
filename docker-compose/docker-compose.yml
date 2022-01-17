@@ -6,6 +6,7 @@ services:
     environment:
       NEO4J_AUTH: 'neo4j/password'
       NEO4JLABS_PLUGINS: '["apoc", "graph-data-science"]'
+      LOG_LEVEL: DEBUG
     ulimits:
       memlock:
         soft: -1

@@ -2,10 +2,10 @@ import csv
 import time
 import os
 import sys
+sys.path.append('../../../util')
 
-
-from util.graphdb_base import GraphDBBase
-from util.string_util import strip
+from graphdb_base import GraphDBBase
+from string_util import strip
 
 
 class RetailRocketImporter(GraphDBBase):
@@ -57,7 +57,7 @@ if __name__ == '__main__':
     importing = RetailRocketImporter(argv=sys.argv[1:])
     base_path = importing.source_dataset_path
     if not base_path:
-        base_path = "../../../dataset/retailrocket/"
+        base_path = "../../data/"
     file_path = os.path.join(base_path, "events.csv")
     importing.import_user_item(file=file_path)
     end = time.time() - start

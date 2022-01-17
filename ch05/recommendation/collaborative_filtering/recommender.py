@@ -1,11 +1,12 @@
 from enum import Enum
 from typing import Dict, List
 import sys
+sys.path.append('../../../util')
 from neo4j import Transaction
 
-from util.fixed_heapq import FixedHeap
-from util.sparse_vector import cosine_similarity
-from util.graphdb_base import GraphDBBase
+from fixed_heapq import FixedHeap
+from sparse_vector import cosine_similarity
+from graphdb_base import GraphDBBase
 
 
 class BaseRecommender(GraphDBBase):
@@ -13,6 +14,7 @@ class BaseRecommender(GraphDBBase):
     property = None
     sparse_vector_query = None
     score_query = None
+    relation_label = None
 
     def __init__(self, argv):
         super().__init__(command=__file__, argv=argv)
@@ -55,8 +57,8 @@ class BaseRecommender(GraphDBBase):
         return dict(result.values())
 
     def store_KNN(self, key: str, sims: List[Dict]) -> None:
-        deleteQuery = f"""
-            MATCH (n:{self.label})-[s:SIMILARITY]->()
+        delete_query = f"""
+            MATCH (n:{self.label})-[s:SIMILARITY_{self.relation_label}]->()
             WHERE n.{self.property} = $id
             DELETE s"""
 
@@ -66,14 +68,14 @@ class BaseRecommender(GraphDBBase):
             UNWIND $sims as sim
             MATCH (o:{self.label}) 
             WHERE o.{self.property} = sim.secondNode 
-            CREATE (n)-[s:SIMILARITY {{ value: toFloat(sim.similarity) }}]->(o)"""
+            CREATE (n)-[s:SIMILARITY_{self.relation_label} {{ value: toFloat(sim.similarity) }}]->(o)"""
 
         with self._driver.session() as session:
             tx = session.begin_transaction()
             params = {
                 "id": key,
                 "sims": sims}
-            tx.run(deleteQuery, params)
+            tx.run(delete_query, params)
             tx.run(query, params)
             tx.commit()
 
@@ -111,13 +113,14 @@ class BaseRecommender(GraphDBBase):
 class UserRecommender(BaseRecommender):
     label = "User"
     property = "userId"
+    relation_label = "USER"
     sparse_vector_query = """
         MATCH (u:User {userId: $id})-[:PURCHASES]->(i:Item)
         return id(i) as index, 1.0 as value
         order by index
     """
-    score_query = """
-        MATCH (user:User)-[:SIMILARITY]->(otherUser:User)
+    score_query = f"""
+        MATCH (user:User)-[:SIMILARITY_{relation_label}]->(otherUser:User)
         WHERE user.userId = $userId
         WITH otherUser, count(otherUser) as size
         MATCH (otherUser)-[r:PURCHASES]->(target:Target)
@@ -130,15 +133,16 @@ class UserRecommender(BaseRecommender):
 
 
 class ItemRecommender(BaseRecommender):
-    label = "User"
-    property = "userId"
+    label = "Item"
+    property = "itemId"
+    relation_label = "ITEM"
     sparse_vector_query = """
-        MATCH (u:User )-[:PURCHASES]->(i:Item {itemId: $id})
+        MATCH (u:User)-[:PURCHASES]->(i:Item {itemId: $id})
         return id(u) as index, 1.0 as value
         order by index
     """
-    score_query = """
-        MATCH (user:User)-[:PURCHASES]->(item:Item)-[r:SIMILARITY]->(target:Item)
+    score_query = f"""
+        MATCH (user:User)-[:PURCHASES]->(item:Item)-[r:SIMILARITY_{relation_label}]->(target:Item)
         WHERE user.userId = $userId AND target.itemId = $itemId
         return sum(r.value) as score
     """
@@ -163,14 +167,6 @@ class Recommender(GraphDBBase):
         strategy = self.strategies[type_]
         strategy.compute_and_store_KNN(20)
 
-    def clean_KNN(self):
-        print("cleaning previously computed KNNs")
-        delete_query = "MATCH p=()-[r:SIMILARITY]->() DELETE r"
-        with self._driver.session() as session:
-            tx = session.begin_transaction()
-            tx.run(delete_query)
-            tx.commit()
-
     def get_recommendations(self, user_id: str, size: int, type_: KNNType):
         strategy = self.strategies[type_]
         return strategy.get_recommendations(user_id, size)
@@ -179,13 +175,11 @@ class Recommender(GraphDBBase):
 def main():
     # TODO: pass the user ID in the command-line
     recommender = Recommender(sys.argv[1:])
-    recommender.clean_KNN()
     recommender.compute_and_store_KNN(recommender.KNNType.USER)
     user_id = "121688"
     print(f"User-based recommendations for user {user_id}")
     recommendations = recommender.get_recommendations(user_id, 10, recommender.KNNType.USER)
     print(recommendations)
-    recommender.clean_KNN()
     recommender.compute_and_store_KNN(recommender.KNNType.ITEM)
     user_id = "121688"
     print(f"Item-based recommendations for user {user_id}")
